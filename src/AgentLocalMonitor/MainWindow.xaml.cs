@@ -13,6 +13,7 @@ using Forms = System.Windows.Forms;
 using Drawing = System.Drawing;
 using MediaBrush = System.Windows.Media.Brush;
 using MediaBrushes = System.Windows.Media.Brushes;
+using MessageBox = System.Windows.MessageBox;
 
 namespace AgentLocalMonitor;
 
@@ -32,6 +33,8 @@ public partial class MainWindow : Window
     private readonly Forms.NotifyIcon _tray = new();
     private readonly string _dataDir;
     private readonly string _eventLog;
+    private readonly string _projectsFile;
+    private readonly HashSet<string> _manualProjects = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _python;
     private readonly string _monitorScript;
     private TaskRow? _selected;
@@ -58,6 +61,8 @@ public partial class MainWindow : Window
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentLocalMonitor");
         Directory.CreateDirectory(_dataDir);
         _eventLog = Path.Combine(_dataDir, "events.jsonl");
+        _projectsFile = Path.Combine(_dataDir, "projects.json");
+        LoadProjectFolders();
         LoadEvents();
         SetupTray();
         Loaded += (_, _) => { PositionInLowerHalf(); StartMonitorStream(); };
@@ -98,6 +103,35 @@ public partial class MainWindow : Window
 
     private void PositionButton_Click(object sender, RoutedEventArgs e)
         => WindowPlacement.PlaceInLowerHalf(this, _dataDir, useCurrentMonitor: true);
+
+    private void TopmostButton_Click(object sender, RoutedEventArgs e)
+    {
+        Topmost = !Topmost;
+        TopmostButton.Content = Topmost ? "最前面 ON" : "最前面 OFF";
+    }
+
+    private void LoadProjectFolders()
+    {
+        try
+        {
+            if (File.Exists(_projectsFile))
+                foreach (var path in JsonSerializer.Deserialize<string[]>(File.ReadAllText(_projectsFile)) ?? [])
+                    if (Directory.Exists(path)) _manualProjects.Add(Path.GetFullPath(path));
+        }
+        catch (Exception ex) { Debug.WriteLine($"Project folder load failed: {ex.Message}"); }
+    }
+
+    private void AddProjectButton_Click(object sender, RoutedEventArgs e)
+    {
+        using var dialog = new Forms.FolderBrowserDialog { Description = "監視対象候補に表示するプロジェクトフォルダを選択", ShowNewFolderButton = false };
+        if (dialog.ShowDialog() != Forms.DialogResult.OK || !Directory.Exists(dialog.SelectedPath)) return;
+        var path = Path.GetFullPath(dialog.SelectedPath);
+        _manualProjects.Add(path);
+        try { File.WriteAllText(_projectsFile, JsonSerializer.Serialize(_manualProjects.OrderBy(p => p).ToArray())); }
+        catch (Exception ex) { MessageBox.Show(this, $"フォルダ候補を保存できませんでした: {ex.Message}", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        RebuildProjectFilter(path);
+        RenderCurrentTab();
+    }
 
     private void SetupTray()
     {
@@ -312,7 +346,7 @@ public partial class MainWindow : Window
             EffectiveEffort = GetString(e, "effective_effort", "未報告"),
             Status = status, StatusLabel = StatusName(status, role),
             StatusBrush = StatusColor(status), ProviderBrush = ProviderColor(provider),
-            CreatedAt = created, StartedAt = started, EndedAt = ended,
+            CreatedAt = created, StartedAt = started, ProcessStartedAt = GetString(e, "process_started_at"), EndedAt = ended,
             Created = FormatDate(created), Started = FormatDate(started), Ended = FormatDate(ended),
             Elapsed = FormatElapsed(started, ended), SortTime = ParseDate(ended) ?? ParseDate(started) ?? ParseDate(created) ?? DateTime.MinValue,
             LatestEvent = latest, Brief = GetString(e, "task"), Result = GetString(e, "result"),
@@ -379,13 +413,28 @@ public partial class MainWindow : Window
         AttentionCount.Text = tasks.Count(x => x.Status.Contains("unknown") || x.Status.Contains("failed") || x.EffectiveModel == "未報告").ToString(CultureInfo.InvariantCulture);
     }
 
-    private void RebuildProjectFilter()
+    private void RebuildProjectFilter(string? selectedPath = null)
     {
-        var current = (ProjectFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
+        var current = selectedPath ?? (ProjectFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
         ProjectFilter.SelectionChanged -= Filter_Changed;
         ProjectFilter.Items.Clear(); ProjectFilter.Items.Add(new ComboBoxItem { Content = "全プロジェクト", Tag = "" });
-        foreach (var project in _active.Concat(_history).Select(x => x.Project).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x))
-            ProjectFilter.Items.Add(new ComboBoxItem { Content = project, Tag = project });
+        var knownPaths = _active.Concat(_history).Select(x => x.Repo)
+            .Concat(_manualProjects);
+        var folderRoot = @"S:\Projects";
+        try
+        {
+            if (Directory.Exists(folderRoot)) knownPaths = knownPaths.Concat(Directory.EnumerateDirectories(folderRoot));
+        }
+        catch (Exception ex) { Debug.WriteLine($"Project directory scan failed: {ex.Message}"); }
+        var projectPaths = knownPaths.Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p.TrimEnd('\\', '/')).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var path in projectPaths)
+            ProjectFilter.Items.Add(new ComboBoxItem { Content = $"{Path.GetFileName(path)}  ·  {path}", Tag = path, ToolTip = path });
+        // Preserve unknown/unresolved groups without conflating them with an actual folder.
+        foreach (var project in _active.Concat(_history).Where(x => string.IsNullOrWhiteSpace(x.Repo))
+                     .Select(x => x.Project).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase))
+            ProjectFilter.Items.Add(new ComboBoxItem { Content = project, Tag = "name:" + project });
         ProjectFilter.SelectedItem = ProjectFilter.Items.Cast<ComboBoxItem>().FirstOrDefault(x => (string?)x.Tag == current) ?? ProjectFilter.Items[0];
         ProjectFilter.SelectionChanged += Filter_Changed;
     }
@@ -395,7 +444,10 @@ public partial class MainWindow : Window
         var project = (ProjectFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
         var provider = (ProviderFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
         var query = SearchBox.Text.Trim();
-        return (string.IsNullOrEmpty(project) || x.Project.Equals(project, StringComparison.OrdinalIgnoreCase))
+        return (string.IsNullOrEmpty(project) || (project.StartsWith("name:", StringComparison.Ordinal) ? x.Project.Equals(project[5..], StringComparison.OrdinalIgnoreCase)
+                : x.Repo.TrimEnd('\\', '/').Equals(project, StringComparison.OrdinalIgnoreCase)
+                  || x.Repo.StartsWith(project.TrimEnd('\\', '/') + "\\", StringComparison.OrdinalIgnoreCase)
+                  || x.Repo.StartsWith(project.TrimEnd('\\', '/') + "/", StringComparison.OrdinalIgnoreCase)))
             && (string.IsNullOrEmpty(provider) || x.Provider.Equals(provider, StringComparison.OrdinalIgnoreCase))
             && (string.IsNullOrEmpty(query) || $"{x.TaskSummary} {x.Pid} {x.RunId} {x.ProjectTree} {x.Model}".Contains(query, StringComparison.OrdinalIgnoreCase));
     }
@@ -421,6 +473,9 @@ public partial class MainWindow : Window
 
     private void RenderDetails(TaskRow x)
     {
+        KillTaskButton.IsEnabled = _active.Any(a => a.Key == x.Key && a.Pid == x.Pid) &&
+                                   int.TryParse(x.Pid, out var pid) && pid > 0 && pid != Environment.ProcessId &&
+                                   x.Provider is "claude" or "codex" or "agy" && !string.IsNullOrWhiteSpace(x.ProcessStartedAt);
         DetailTitle.Text = x.TaskSummary; DetailIdentity.Text = $"{x.RunId} · PID {x.Pid}";
         DetailState.Text = x.StatusLabel; DetailProject.Text = x.Project; DetailTree.Text = x.Tree;
         DetailModel.Text = x.Model; DetailApiModel.Text = x.ApiModel;
@@ -489,6 +544,54 @@ public partial class MainWindow : Window
             DetailExpander.IsExpanded = true;
         }
     }
+    private void KillTaskButton_Click(object sender, RoutedEventArgs e)
+    {
+        var row = _selected;
+        if (row is null || !KillTaskButton.IsEnabled || !int.TryParse(row.Pid, out var pid)) return;
+        // No process tree kill: the selected task can be a child of an unrelated owner.
+        if (!TryVerifyTarget(row, pid, out var reason, out var initialStart))
+        {
+            MessageBox.Show(this, reason, "終了対象を確認できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        var prompt = $"本当にこのプロセスを終了しますか？\n\n{row.ProviderLabel}  /  PID {pid}\n{row.Project}\n{row.TaskSummary}\n\n未保存の作業が失われる可能性があります。子プロセスは終了しません。";
+        if (MessageBox.Show(this, prompt, "本当に終了しますか？", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        if (!TryVerifyTarget(row, pid, out reason, out var verifiedStart) || verifiedStart != initialStart)
+        {
+            MessageBox.Show(this, "確認中に対象の同一性が変わったため、中止しました。" + reason, "安全停止", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            if (process.StartTime.ToUniversalTime() != initialStart) throw new InvalidOperationException("終了直前にPIDが再利用されました");
+            process.Kill(entireProcessTree: false);
+            AddEvent("手動終了要求", $"{row.ProviderLabel} PID {pid}: OSへ終了要求を送信（完了は未確認）", row.Project);
+            MessageBox.Show(this, $"PID {pid} に終了要求を送信しました。次回の更新で結果を確認してください。", "終了要求", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex) { MessageBox.Show(this, $"終了できませんでした: {ex.Message}", "終了失敗", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private bool TryVerifyTarget(TaskRow row, int pid, out string reason, out DateTime startUtc)
+    {
+        reason = ""; startUtc = default;
+        if (pid <= 0 || pid == Environment.ProcessId || !_active.Any(x => x.Key == row.Key && x.Pid == row.Pid && x.ProcessStartedAt == row.ProcessStartedAt))
+        { reason = "監視中の選択タスクと一致しません。"; return false; }
+        if (!DateTimeOffset.TryParse(row.ProcessStartedAt, out var recordedStart))
+        { reason = "プロセス開始時刻を解釈できません。"; return false; }
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            var name = process.ProcessName.ToLowerInvariant();
+            if (!(name.StartsWith("codex") && row.Provider == "codex" || name.StartsWith("claude") && row.Provider == "claude" || name.StartsWith("agy") && row.Provider == "agy"))
+            { reason = "実行中プロセスの名前とプロバイダが一致しません。"; return false; }
+            startUtc = process.StartTime.ToUniversalTime();
+            if (Math.Abs((startUtc - recordedStart.UtcDateTime).TotalSeconds) > 2)
+            { reason = "PIDの開始時刻が監視記録と一致しません。"; return false; }
+            return true;
+        }
+        catch (Exception ex) { reason = "対象の同一性確認に失敗: " + ex.Message; return false; }
+    }
     private void Filter_Changed(object sender, RoutedEventArgs e) { if (!IsLoaded) return; _page = 1; RenderCurrentTab(); }
     private void HistoryFilter_Changed(object sender, SelectionChangedEventArgs e) { if (!IsLoaded) return; _page = 1; RenderCurrentTab(); }
     private void PrevPage_Click(object sender, RoutedEventArgs e) { _page = Math.Max(1, _page - 1); RenderCurrentTab(); }
@@ -518,7 +621,7 @@ public sealed class TaskRow
     public string Effort { get; set; } = "不明"; public string ApiEffort { get; set; } = "記録なし"; public string EffectiveEffort { get; set; } = "未報告";
     public string Status { get; set; } = "unknown"; public string StatusLabel { get; set; } = "Unknown";
     public MediaBrush ProviderBrush { get; set; } = MediaBrushes.White; public MediaBrush StatusBrush { get; set; } = MediaBrushes.Gray; public MediaBrush CardBackground { get; set; } = MediaBrushes.Transparent;
-    public string CreatedAt { get; set; } = ""; public string StartedAt { get; set; } = ""; public string EndedAt { get; set; } = "";
+    public string CreatedAt { get; set; } = ""; public string StartedAt { get; set; } = ""; public string ProcessStartedAt { get; set; } = ""; public string EndedAt { get; set; } = "";
     public string Created { get; set; } = "未記録"; public string Started { get; set; } = "未記録"; public string Ended { get; set; } = "未記録";
     public string Elapsed { get; set; } = "—"; public DateTime SortTime { get; set; }
     public string LatestEvent { get; set; } = ""; public string Brief { get; set; } = ""; public string Result { get; set; } = "";

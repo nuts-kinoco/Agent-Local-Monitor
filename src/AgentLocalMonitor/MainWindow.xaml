@@ -24,10 +24,11 @@
             <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
         <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock Text="≋" Foreground="{StaticResource Mint}" FontSize="19" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="1" Text="Agent Local Monitor" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            <Button Grid.Column="2" Content="下半分" Click="PositionButton_Click" ToolTip="この画面の下半分に配置" FontSize="10" Padding="7,3" VerticalAlignment="Center"/>
+            <Button x:Name="TopmostButton" Grid.Column="2" Content="最前面 OFF" Click="TopmostButton_Click" ToolTip="常に最前面の表示を切り替える" FontSize="10" Padding="6,3" Margin="0,0,4,0" VerticalAlignment="Center"/>
+            <Button Grid.Column="3" Content="下半分" Click="PositionButton_Click" ToolTip="この画面の下半分に配置" FontSize="10" Padding="7,3" VerticalAlignment="Center"/>
         </Grid>
         <Grid Grid.Row="1" Margin="0,3,0,5">
             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
@@ -52,10 +53,11 @@
             <TextBlock x:Name="LastRefresh" Grid.Column="4" Text="未更新" Foreground="{StaticResource Muted}" VerticalAlignment="Center" FontSize="9"/>
         </Grid>
         <Grid Grid.Row="3" Margin="0,0,0,6">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1*"/><ColumnDefinition Width="1.05*"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="1*"/><ColumnDefinition Width="1.05*"/></Grid.ColumnDefinitions>
             <ComboBox x:Name="ProjectFilter" Grid.Column="0" Margin="0,0,5,0" SelectedIndex="0" SelectionChanged="Filter_Changed" Height="28" VerticalContentAlignment="Center"><ComboBoxItem Content="全プロジェクト" Tag=""/></ComboBox>
-            <ComboBox x:Name="ProviderFilter" Grid.Column="1" Margin="0,0,5,0" SelectedIndex="0" SelectionChanged="Filter_Changed" Height="28" VerticalContentAlignment="Center"><ComboBoxItem Content="全プロバイダ" Tag=""/><ComboBoxItem Content="Claude" Tag="claude"/><ComboBoxItem Content="Codex" Tag="codex"/><ComboBoxItem Content="AGY" Tag="agy"/></ComboBox>
-            <TextBox x:Name="SearchBox" Grid.Column="2" Height="28" Style="{StaticResource SearchTextBoxStyle}" VerticalContentAlignment="Center" TextChanged="Filter_Changed" ToolTip="タスク・PID・worktreeを検索"/>
+            <Button Grid.Column="1" Content="＋" ToolTip="プロジェクトフォルダを追加" Click="AddProjectButton_Click" Padding="6,3" Margin="0,0,5,0"/>
+            <ComboBox x:Name="ProviderFilter" Grid.Column="2" Margin="0,0,5,0" SelectedIndex="0" SelectionChanged="Filter_Changed" Height="28" VerticalContentAlignment="Center"><ComboBoxItem Content="全プロバイダ" Tag=""/><ComboBoxItem Content="Claude" Tag="claude"/><ComboBoxItem Content="Codex" Tag="codex"/><ComboBoxItem Content="AGY" Tag="agy"/></ComboBox>
+            <TextBox x:Name="SearchBox" Grid.Column="3" Height="28" Style="{StaticResource SearchTextBoxStyle}" VerticalContentAlignment="Center" TextChanged="Filter_Changed" ToolTip="タスク・PID・worktreeを検索"/>
         </Grid>
         <Grid Grid.Row="4">
             <Grid.RowDefinitions><RowDefinition Height="30"/><RowDefinition Height="*"/><RowDefinition Height="24"/></Grid.RowDefinitions>
@@ -111,6 +113,7 @@
                         <TextBlock Text="プロジェクト" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailProject" Grid.Column="1" FontSize="10"/><TextBlock Grid.Row="1" Text="worktree" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailTree" Grid.Row="1" Grid.Column="1" FontSize="10"/><TextBlock Grid.Row="2" Text="指定モデル" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailModel" Grid.Row="2" Grid.Column="1" FontSize="10" TextWrapping="Wrap"/><TextBlock Grid.Row="3" Text="最終APIモデル" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailApiModel" Grid.Row="3" Grid.Column="1" FontSize="10" TextWrapping="Wrap"/><TextBlock Grid.Row="4" Text="実効モデル" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailEffective" Grid.Row="4" Grid.Column="1" FontSize="10"/><TextBlock Grid.Row="5" Text="effort" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailEffort" Grid.Row="5" Grid.Column="1" FontSize="10"/>
                     </Grid>
                     <TextBlock Text="TIMELINE" Foreground="{StaticResource Muted}" FontSize="9" Margin="0,12,0,5"/><TextBlock x:Name="DetailTimeline" FontSize="10" TextWrapping="Wrap"/>
+                    <Button x:Name="KillTaskButton" Content="選択タスクのプロセスを終了…" Click="KillTaskButton_Click" IsEnabled="False" HorizontalAlignment="Left" Padding="8,4" Margin="0,8,0,0" ToolTip="PIDと起動時刻を再確認後、確認ダイアログを表示します。子プロセスは終了しません"/>
                     <TextBlock Text="依頼内容 / 最新情報" Foreground="{StaticResource Muted}" FontSize="9" Margin="0,12,0,5"/><TextBlock x:Name="DetailBrief" FontSize="10" TextWrapping="Wrap"/><TextBlock x:Name="DetailResult" FontSize="10" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/><TextBlock x:Name="DetailReceipt" FontSize="9" Foreground="{StaticResource Blue}" TextWrapping="Wrap" Margin="0,8,0,0"/>
             </StackPanel></ScrollViewer>
         </Expander>

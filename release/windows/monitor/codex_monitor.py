@@ -296,8 +296,10 @@ def classify_process(process, roots=DEFAULT_ROOTS):
     name = process.get("Name") or "codex.exe"
     pid = int(process.get("ProcessId") or 0)
     lower = (command + " " + name).lower()
+    process_start = _process_started_at(process.get("CreationDate"))
     base = {"pid": pid, "parent_pid": int(process.get("ParentProcessId") or 0),
-            "name": name, "started_at": process.get("CreationDate"),
+            "name": name, "started_at": process_start.isoformat() if process_start else None,
+            "process_started_at": process_start.isoformat() if process_start else None,
             "executable": process.get("ExecutablePath"), "classification": "unknown",
             "task": None, "repo": None, "model": None, "effort": None,
             "run_id": None, "status": "unknown", "latest_event": None}
