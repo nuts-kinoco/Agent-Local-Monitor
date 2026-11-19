@@ -1,0 +1,11 @@
+﻿**/bin/
+**/obj/
+.vs/
+*.user
+*.log
+*.db
+*.sqlite*
+__pycache__/
+*.pyc
+profile*/
+evidence/
