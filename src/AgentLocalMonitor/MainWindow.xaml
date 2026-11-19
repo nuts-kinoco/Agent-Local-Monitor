@@ -1,0 +1,119 @@
+<Window x:Class="AgentLocalMonitor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Agent Local Monitor" Width="540" Height="900" MinWidth="360" MinHeight="440"
+        ResizeMode="CanResize" WindowStartupLocation="Manual" UseLayoutRounding="True" SnapsToDevicePixels="True" Background="{StaticResource Bg}"
+        Foreground="{StaticResource TextMain}" FontFamily="Segoe UI, Meiryo UI" FontSize="12"
+        Closing="Window_Closing">
+    <Grid Margin="10,8,10,6">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/><RowDefinition Height="44"/><RowDefinition Height="30"/>
+            <RowDefinition Height="36"/><RowDefinition Height="3*"/>
+            <RowDefinition MaxHeight="220">
+                <RowDefinition.Style>
+                    <Style TargetType="RowDefinition">
+                        <Setter Property="Height" Value="Auto"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsExpanded, ElementName=DetailExpander}" Value="True">
+                                <Setter Property="Height" Value="2*"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </RowDefinition.Style>
+            </RowDefinition>
+            <RowDefinition Height="20"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock Text="≋" Foreground="{StaticResource Mint}" FontSize="19" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="Agent Local Monitor" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <Button Grid.Column="2" Content="下半分" Click="PositionButton_Click" ToolTip="この画面の下半分に配置" FontSize="10" Padding="7,3" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Grid.Row="1" Margin="0,3,0,5">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="5" Margin="0,0,5,0" Padding="6,4">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="実行中" Foreground="{StaticResource Muted}" FontSize="10" VerticalAlignment="Center"/><TextBlock x:Name="ActiveCount" Grid.Column="1" Text="—" FontSize="17" VerticalAlignment="Center"/></Grid>
+            </Border>
+            <Border Grid.Column="1" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="5" Margin="0,0,5,0" Padding="6,4">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="レビュー" Foreground="{StaticResource Muted}" FontSize="10" VerticalAlignment="Center"/><TextBlock x:Name="ReviewCount" Grid.Column="1" Text="—" FontSize="17" VerticalAlignment="Center"/></Grid>
+            </Border>
+            <Border Grid.Column="2" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="5" Margin="0,0,5,0" Padding="6,4">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="本日完了" Foreground="{StaticResource Muted}" FontSize="10" VerticalAlignment="Center"/><TextBlock x:Name="CompletedCount" Grid.Column="1" Text="—" FontSize="17" VerticalAlignment="Center"/></Grid>
+            </Border>
+            <Border Grid.Column="3" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="5" Padding="6,4">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="要確認" Foreground="{StaticResource Muted}" FontSize="10" VerticalAlignment="Center"/><TextBlock x:Name="AttentionCount" Grid.Column="1" Text="—" FontSize="17" Foreground="{StaticResource Orange}" VerticalAlignment="Center"/></Grid>
+            </Border>
+        </Grid>
+        <Grid Grid.Row="2" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="70"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock x:Name="RefreshState" Text="● 自動更新" Foreground="{StaticResource Mint}" VerticalAlignment="Center" FontSize="10" Margin="0,0,8,0"/>
+            <ComboBox x:Name="IntervalBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="IntervalBox_SelectionChanged" Height="25" VerticalContentAlignment="Center"><ComboBoxItem Content="5 秒" Tag="5"/><ComboBoxItem Content="10 秒" Tag="10"/><ComboBoxItem Content="30 秒" Tag="30"/></ComboBox>
+            <Button x:Name="PauseButton" Grid.Column="2" Content="Ⅱ 停止" Click="PauseButton_Click" Margin="6,0,0,0" Padding="7,4"/>
+            <TextBlock x:Name="LastRefresh" Grid.Column="4" Text="未更新" Foreground="{StaticResource Muted}" VerticalAlignment="Center" FontSize="9"/>
+        </Grid>
+        <Grid Grid.Row="3" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1*"/><ColumnDefinition Width="1.05*"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="ProjectFilter" Grid.Column="0" Margin="0,0,5,0" SelectedIndex="0" SelectionChanged="Filter_Changed" Height="28" VerticalContentAlignment="Center"><ComboBoxItem Content="全プロジェクト" Tag=""/></ComboBox>
+            <ComboBox x:Name="ProviderFilter" Grid.Column="1" Margin="0,0,5,0" SelectedIndex="0" SelectionChanged="Filter_Changed" Height="28" VerticalContentAlignment="Center"><ComboBoxItem Content="全プロバイダ" Tag=""/><ComboBoxItem Content="Claude" Tag="claude"/><ComboBoxItem Content="Codex" Tag="codex"/><ComboBoxItem Content="AGY" Tag="agy"/></ComboBox>
+            <TextBox x:Name="SearchBox" Grid.Column="2" Height="28" Style="{StaticResource SearchTextBoxStyle}" VerticalContentAlignment="Center" TextChanged="Filter_Changed" ToolTip="タスク・PID・worktreeを検索"/>
+        </Grid>
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions><RowDefinition Height="30"/><RowDefinition Height="*"/><RowDefinition Height="24"/></Grid.RowDefinitions>
+            <Border Grid.Row="0" Background="{StaticResource Panel}" CornerRadius="7,7,0,0" BorderBrush="{StaticResource Line}" BorderThickness="1,1,1,0">
+                <StackPanel Orientation="Horizontal" Margin="10,0" VerticalAlignment="Center">
+                    <Button x:Name="LiveTab" Content="実行中" Background="Transparent" BorderThickness="0,0,0,2" BorderBrush="{StaticResource Mint}" Click="LiveTab_Click" Padding="5,6"/>
+                    <Button x:Name="EventsTab" Content="イベント" Background="Transparent" BorderThickness="0" Click="EventsTab_Click" Padding="9,6"/>
+                    <Button x:Name="HistoryTab" Content="履歴" Background="Transparent" BorderThickness="0" Click="HistoryTab_Click" Padding="9,6"/>
+                    <TextBlock x:Name="TabCount" Text="—" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="10"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1,0,1,0">
+                <Grid>
+                    <ScrollViewer x:Name="LiveScroll" VerticalScrollBarVisibility="Auto" Padding="8,2">
+                        <ItemsControl ItemsSource="{Binding ActiveView}">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <Button Background="{Binding CardBackground}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" HorizontalContentAlignment="Stretch" Padding="8,6" Margin="0" Click="TaskCard_Click" Tag="{Binding}">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="108"/></Grid.ColumnDefinitions>
+                                        <StackPanel><TextBlock Text="{Binding TaskSummary}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" MaxHeight="34"/><TextBlock Text="{Binding ProjectTree}" Foreground="{StaticResource Muted}" FontSize="10" Margin="0,4,0,0"/><TextBlock Text="{Binding PidRun}" Foreground="{StaticResource Muted}" FontFamily="Consolas" FontSize="9" Margin="0,2,0,0"/></StackPanel>
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"><TextBlock Text="{Binding ProviderLabel}" Foreground="{Binding ProviderBrush}" FontWeight="SemiBold" FontSize="10" HorizontalAlignment="Right"/><TextBlock Text="{Binding ModelEffort}" Foreground="{StaticResource Muted}" FontSize="9" HorizontalAlignment="Right" Margin="0,3,0,0"/><TextBlock Text="{Binding StatusLabel}" Foreground="{Binding StatusBrush}" FontSize="10" HorizontalAlignment="Right" Margin="0,4,0,0"/><TextBlock Text="{Binding Elapsed}" Foreground="{StaticResource Muted}" FontFamily="Consolas" FontSize="9" HorizontalAlignment="Right"/></StackPanel>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <ScrollViewer x:Name="EventsScroll" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="12,5"><ItemsControl ItemsSource="{Binding EventView}"><ItemsControl.ItemTemplate><DataTemplate><Grid Margin="0,8,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="58"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Time}" FontFamily="Consolas" Foreground="{StaticResource Muted}" FontSize="10"/><StackPanel Grid.Column="1"><TextBlock Text="{Binding Title}" FontWeight="SemiBold"/><TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" FontSize="10"/><TextBlock Text="{Binding Source}" Foreground="{StaticResource Muted}" FontSize="9"/></StackPanel></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+                    <Grid x:Name="HistoryPane" Visibility="Collapsed" Margin="8,4">
+                        <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="*"/><RowDefinition Height="30"/></Grid.RowDefinitions>
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="期間" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <DatePicker x:Name="FromDate" Grid.Column="1" SelectedDateChanged="HistoryFilter_Changed"/>
+                            <TextBlock Grid.Column="2" Text="〜" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="4,0"/>
+                            <DatePicker x:Name="ToDate" Grid.Column="3" SelectedDateChanged="HistoryFilter_Changed"/>
+                        </Grid>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"><ItemsControl ItemsSource="{Binding HistoryView}"><ItemsControl.ItemTemplate><DataTemplate><Button Background="Transparent" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" HorizontalContentAlignment="Stretch" Padding="7,8" Click="TaskCard_Click" Tag="{Binding}"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding TaskSummary}" FontWeight="SemiBold" TextWrapping="Wrap" MaxHeight="32"/><TextBlock Text="{Binding ProjectTree}" Foreground="{StaticResource Muted}" FontSize="9" Margin="0,3,0,0"/><TextBlock Text="{Binding ModelEffort}" Foreground="{StaticResource Muted}" FontSize="9"/></StackPanel><StackPanel Grid.Column="1" HorizontalAlignment="Right"><TextBlock Text="{Binding ProviderLabel}" Foreground="{Binding ProviderBrush}" HorizontalAlignment="Right"/><TextBlock Text="{Binding StatusLabel}" Foreground="{Binding StatusBrush}" HorizontalAlignment="Right" Margin="0,4,0,0"/><TextBlock Text="{Binding Ended}" Foreground="{StaticResource Muted}" FontSize="9" HorizontalAlignment="Right"/></StackPanel></Grid></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+                        <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="HistoryCount" Foreground="{StaticResource Muted}" VerticalAlignment="Center" FontSize="9"/><Button Grid.Column="1" Content="←" Click="PrevPage_Click" Padding="8,3" Margin="0,0,4,0"/><TextBlock x:Name="PageLabel" Grid.Column="2" Text="1 / 1" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,4,0"/><Button Grid.Column="3" Content="→" Click="NextPage_Click" Padding="8,3"/></Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+            <Border Grid.Row="2" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1,0,1,1" CornerRadius="0,0,7,7" Padding="8,3">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="ListCount" Foreground="{StaticResource Muted}" FontSize="9" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Grid.Column="1" Text="全件ページング" Foreground="{StaticResource Muted}" FontSize="9" VerticalAlignment="Center"/></Grid>
+            </Border>
+        </Grid>
+        <Expander x:Name="DetailExpander" Grid.Row="5" IsExpanded="False" MaxHeight="220" Margin="0,6,0,0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+            <Expander.Header>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="タスク詳細" FontSize="11" FontWeight="SemiBold"/><TextBlock x:Name="DetailState" Grid.Column="1" Foreground="{StaticResource Mint}" FontSize="10" TextAlignment="Right" Margin="10,0,0,0"/></Grid>
+            </Expander.Header>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="10,2,10,8"><StackPanel>
+                    <TextBlock x:Name="DetailTitle" Text="タスクを選択してください" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" MaxHeight="34" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="0,0,0,7"/><TextBlock x:Name="DetailIdentity" Foreground="{StaticResource Muted}" FontFamily="Consolas" FontSize="9" TextWrapping="Wrap"/>
+                    <TextBlock Text="IDENTITY / MODEL" Foreground="{StaticResource Muted}" FontSize="9" Margin="0,12,0,5"/>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                        <TextBlock Text="プロジェクト" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailProject" Grid.Column="1" FontSize="10"/><TextBlock Grid.Row="1" Text="worktree" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailTree" Grid.Row="1" Grid.Column="1" FontSize="10"/><TextBlock Grid.Row="2" Text="指定モデル" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailModel" Grid.Row="2" Grid.Column="1" FontSize="10" TextWrapping="Wrap"/><TextBlock Grid.Row="3" Text="最終APIモデル" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailApiModel" Grid.Row="3" Grid.Column="1" FontSize="10" TextWrapping="Wrap"/><TextBlock Grid.Row="4" Text="実効モデル" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailEffective" Grid.Row="4" Grid.Column="1" FontSize="10"/><TextBlock Grid.Row="5" Text="effort" Foreground="{StaticResource Muted}" FontSize="10"/><TextBlock x:Name="DetailEffort" Grid.Row="5" Grid.Column="1" FontSize="10"/>
+                    </Grid>
+                    <TextBlock Text="TIMELINE" Foreground="{StaticResource Muted}" FontSize="9" Margin="0,12,0,5"/><TextBlock x:Name="DetailTimeline" FontSize="10" TextWrapping="Wrap"/>
+                    <TextBlock Text="依頼内容 / 最新情報" Foreground="{StaticResource Muted}" FontSize="9" Margin="0,12,0,5"/><TextBlock x:Name="DetailBrief" FontSize="10" TextWrapping="Wrap"/><TextBlock x:Name="DetailResult" FontSize="10" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/><TextBlock x:Name="DetailReceipt" FontSize="9" Foreground="{StaticResource Blue}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            </StackPanel></ScrollViewer>
+        </Expander>
+        <Grid Grid.Row="6" Margin="2,5,2,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="Footer" Text="ローカル監視 · 外部通信なし · AI呼び出し0" Foreground="{StaticResource Muted}" FontSize="9" VerticalAlignment="Center"/><TextBlock x:Name="InfraCount" Grid.Column="1" Text="補助 0" Foreground="{StaticResource Muted}" FontSize="9" VerticalAlignment="Center"/></Grid>
+    </Grid>
+</Window>
